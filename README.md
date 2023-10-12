@@ -1,7 +1,8 @@
 
 # CLAIRE-ROP: Rapid Overlapped Partition-based Deformable Image Registration 
 
-<img width="968" alt="Fig4" src="https://github.com/Vahdane/CLAIRE-ROP/assets/62182727/5621c436-da5d-49db-a3a9-60e1cf09fb9e">
+![Fig4](https://github.com/UniHD-CEG/CLAIRE-ROP/assets/62182727/e9baf1c8-b277-408f-9f7d-0c74848f35e4)
+
 
 
 
