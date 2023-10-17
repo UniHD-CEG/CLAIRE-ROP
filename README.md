@@ -16,7 +16,7 @@ Our method addresses this challenge by significantly reducing processing time wi
 
 - [Dataset](https://med.emory.edu/departments/radiation-oncology/research-laboratories/deformable-image-registration/downloads-and-reference-data/4dct.html)
 
--Tools:
+Required tools:
 
   - [SimpleITK](https://pypi.org/project/SimpleITK/)   
   - [NiBabel](https://nipy.org/nibabel/index.html)
