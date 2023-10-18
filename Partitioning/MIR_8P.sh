@@ -8,14 +8,13 @@
 #SBATCH --nodes=1 # number of nodes
 #SBATCH --ntasks-per-node=1
 ##SBATCH --cpus-per-task=1
-#SBATCH --job-name=Claire
+#SBATCH --job-name=RapidClaire
 #SBATCH --output=%j.out
 
+#Load modules
 #module load  compiler/gnu/10
-#module load  mpi/openmpi/4.0 
-
-TS=/home/hk-project-irmulti/hd_fa163/TotalSegmentator/bin
-source /home/hk-project-irmulti/hd_fa163/Claire/claire/deps/env_source.sh
+#module load  mpi/openmpi/4.0
+#module load  devel/cuda/11.6
 
 #Regularization parameter
 betacont=("5e-3")
@@ -23,18 +22,8 @@ betacont=("5e-3")
 ##8Partitions
 
 #Dataset
-#C1-C5
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C1/128x64x94_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C2/128x64x112_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C3/128x64x104_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C4/128x64x99_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C5/128x64x106_8P
-#C6-C10
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C6/128x128x128_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C7/128x128x136_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C8/128x128x128_8P
-DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C9/128x128x128_8P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C10/128x128x120_8P
+DATA=/path/to/dataset
+
 
 export DATA
 
@@ -45,15 +34,15 @@ result=0
 #Partitioning(C1-C5)
 run_section_1=0
 #Partitioning(C6-C10)
-run_section_2=0
+run_section_2=1
 #Run CLAIRE and get the warped images
-run_section_3=0
+run_section_3=1
 #Cropping & Merging
-run_section_4=0
+run_section_4=1
 #Padding (C6-C10)
-run_section_5=0
+run_section_5=1
 #Mask
-run_section_6=0
+run_section_6=1
 #Compute dice
 run_section_7=1
 
@@ -72,7 +61,12 @@ def crop_and_save(input_image, start_indices, cropped_size, position_suffix):
         extract = sitk.ExtractImageFilter()
         extract.SetSize(cropped_size)
         extract.SetIndex(start_index)
+
+        start = time.time()
         cropped_image = extract.Execute(input_image)
+        end = time.time()
+        print("Partitioning time:")
+        print(end - start) 
 
         cropped_image.SetSpacing(input_image.GetSpacing())
         cropped_image.SetOrigin(input_image.GetOrigin())
@@ -136,7 +130,12 @@ def crop_and_save(input_file, input_image, start_indices, cropped_size, position
         extract = sitk.ExtractImageFilter()
         extract.SetSize(cropped_size)
         extract.SetIndex(start_index)
+
+        start = time.time()
         cropped_image = extract.Execute(input_image)
+        end = time.time()
+        print("Partitioning time:")
+        print(end - start) 
 
         cropped_image.SetSpacing(input_image.GetSpacing())
         cropped_image.SetOrigin(input_image.GetOrigin())
@@ -185,7 +184,7 @@ with Pool() as pool:
     pool.starmap(process_input_file, tasks)
 
 end = time.time()
-print("Cropping time:")
+print("Total time:")
 print(end - start)  # time in seconds
 print("Done!")
 '
@@ -469,15 +468,14 @@ crop.SetLowerBoundaryCropSize(lower_crop_size)
 crop.SetUpperBoundaryCropSize(upper_crop_size)
 
 start = time.time()
-
 cropped_image = crop.Execute(deformed_image)
+print("Cropping time:")
+end = time.time()
+print(end - start)
+
 sitk.WriteImage(cropped_image, os.path.join(data_path, '$cropped_output_file'))
 
 print("After cropping - Image size:", cropped_image.GetSize())
-
-print("Cropping time:")
-end = time.time()
-print(end - start)  # time in seconds
 print("Done!")
 EOF
 )
@@ -510,23 +508,22 @@ cropped_deformed_images = [sitk.ReadImage(os.path.join(data_path, image_path)) f
 
 
 print("Tiling!") 
-start = time.time() 
 
 tile = sitk.TileImageFilter()
 
 layout = [int(os.environ["layout"]), int(os.environ["layout"]), 0]
 tile.SetLayout(layout)
 
-
+start = time.time() 
 tiled_image = tile.Execute(cropped_deformed_images)
+print("Merging time:")
+end = time.time()
+print(end - start)
 
 tiled_image.SetOrigin(img_fixed.GetOrigin())
 tiled_image.SetDirection(img_fixed.GetDirection())
 sitk.WriteImage(tiled_image, os.path.join(data_path, "tiled_deformed_mt.nii.gz"))
 
-end = time.time()
-print("Merging time:")
-print(end - start)  # time in seconds
 print("Done!")
 
 '
@@ -704,9 +701,3 @@ print ("Overlap Results (Dice) before and after:" ,overlap_results)
 echo "${python_script_7}" | python > $DATA/overlap_8_4_"$betacont"
 
 fi
-
-
-
-
-
-
