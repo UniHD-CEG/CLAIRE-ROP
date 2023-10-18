@@ -7,8 +7,7 @@
 #SBATCH -e stderr.e
 #SBATCH --nodes=1 # number of nodes
 #SBATCH --ntasks-per-node=1
-##SBATCH --cpus-per-task=1
-#SBATCH --job-name=Claire
+#SBATCH --job-name=RapidClaire
 #SBATCH --output=%j.out
 
 #module load  compiler/gnu/10
@@ -24,18 +23,8 @@ betacont=("5e-3")
 ##4Partitions
 
 ##Dataset
-#C1-C5
-DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C1/128x128x94_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C2/128x128x112_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C3/128x128x104_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C4/128x128x99_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C5/128x128x106_4P
-#C6-C10
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C6/256x128x128_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C7/256x128x136_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C8/256x128x128_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C9/256x128x128_4P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C10/256x128x120_4P
+DATA=/path/to/dataset
+
 
 export DATA
 
@@ -50,7 +39,7 @@ run_section_3=1
 #Cropping & Merging
 run_section_4=1
 #Padding (for large images)
-run_section_5=0
+run_section_5=1
 #Mask
 run_section_6=1
 #Compute dice
@@ -88,8 +77,13 @@ def crop_and_save(input_file):
         extract = sitk.ExtractImageFilter()
         extract.SetSize(cropped_size)
         extract.SetIndex(start_index)
-        cropped_image = extract.Execute(input_image)
 
+        start = time.time()
+        cropped_image = extract.Execute(input_image)
+        end = time.time()
+        print("Partitioning time:")
+        print(end - start)  # time in seconds
+        
         cropped_image.SetSpacing(input_image.GetSpacing())
         cropped_image.SetOrigin(input_image.GetOrigin())
 
@@ -102,11 +96,12 @@ def crop_and_save(input_file):
     return output_filenames
 
 if __name__ == "__main__":
-    start = time.time()
+   
 
     base_dir = os.environ["DATA"]
     input_files = ["mr.nii.gz", "mt.nii.gz"]
-
+   
+    start = time.time()
     # Create a pool of worker processes
     with Pool(processes=len(input_files)) as pool:
         output_filenames_list = pool.map(crop_and_save, input_files)
@@ -115,7 +110,7 @@ if __name__ == "__main__":
     output_filenames = [item for sublist in output_filenames_list for item in sublist]
 
     end = time.time()
-    print("Cropping time:")
+    print("Total time:")
     print(end - start)  # time in seconds
     print("Done!")
 
@@ -142,7 +137,12 @@ def crop_and_save(input_image, start_indices, cropped_size, position_suffix):
         extract = sitk.ExtractImageFilter()
         extract.SetSize(cropped_size)
         extract.SetIndex(start_index)
+
+        start = time.time()
         cropped_image = extract.Execute(input_image)
+        end = time.time()
+        print("Partitioning time:")
+        print(end - start) 
 
         cropped_image.SetSpacing(input_image.GetSpacing())
         cropped_image.SetOrigin(input_image.GetOrigin())
@@ -184,7 +184,7 @@ for input_file in input_files:
    
 
 end = time.time()
-print("Cropping time:")
+print("Total time:")
 print(end - start)  # time in seconds
 print("Done!")
 '
@@ -396,13 +396,17 @@ crop.SetLowerBoundaryCropSize(lower_crop_size)
 crop.SetUpperBoundaryCropSize(upper_crop_size)
 
 start = time.time()
-
 cropped_image = crop.Execute(deformed_image)
+print("Cropping time:")
+end = time.time()
+print(end - start)  
+
+
 sitk.WriteImage(cropped_image, os.path.join(data_path, '$cropped_output_file'))
 
 print("After cropping - Image size:", cropped_image.GetSize())
 
-print("Cropping time:")
+print("Total time:")
 end = time.time()
 print(end - start)  # time in seconds
 print("Done!")
@@ -435,8 +439,10 @@ cropped_deformed_images = [sitk.ReadImage(os.path.join(data_path, image_path)) f
 
 print("Tiling!") 
 start = time.time()
-
 tile = sitk.TileImageFilter()
+end = time.time()
+print("Merging time:")
+print(end - start)  # time in seconds
 
 layout = [2, 2, 0]
 tile.SetLayout(layout)
@@ -448,7 +454,7 @@ tiled_image.SetDirection(img_fixed.GetDirection())
 sitk.WriteImage(tiled_image, os.path.join(data_path, "tiled_deformed_mt.nii.gz"))
 
 end = time.time()
-print("Merging time:")
+print("Total time:")
 print(end - start)  # time in seconds
 print("Done!")
 '
