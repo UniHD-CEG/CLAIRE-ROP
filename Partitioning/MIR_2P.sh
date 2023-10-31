@@ -24,18 +24,8 @@ betacont=("5e-3")
 ##2Partitions
 
 ##Dataset
-#C1-C5
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C1/256x128x94_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C2/256x128x112_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C3/256x128x104_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C4/256x128x99_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C5/256x128x106_2P
-#C6-C10
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C6/256x256x128_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C7/256x256x136_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C8/256x256x128_2P
-#DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C9/256x256x128_2P
-DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C10/256x256x120_2P
+DATA=/path/to/dataset
+
 
 export DATA
 
@@ -53,7 +43,7 @@ run_section_4=0
 #Mask
 run_section_5=0
 #Compute dice
-run_section_6=1
+run_section_6=0
 
 if [ "$run_section_1_1" -eq "1" ]; then
     echo "Running the first section:Partitioning"
