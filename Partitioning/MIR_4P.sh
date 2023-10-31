@@ -7,6 +7,7 @@
 #SBATCH -e stderr.e
 #SBATCH --nodes=1 # number of nodes
 #SBATCH --ntasks-per-node=1
+##SBATCH --cpus-per-task=1
 #SBATCH --job-name=RapidClaire
 #SBATCH --output=%j.out
 
@@ -31,107 +32,32 @@ export DATA
 # Set flags to control which sections to run
 
 #Partitioning(C1-C5), small images
-run_section_1=1
+run_section_1=0
 #Partitioning(C6-C10), large images
 run_section_2=0
 #Run CLAIRE and get the warped images
-run_section_3=1
+run_section_3=0
 #Cropping & Merging
-run_section_4=1
+run_section_4=0
 #Padding (for large images)
-run_section_5=1
+run_section_5=0
 #Mask
-run_section_6=1
+run_section_6=0
 #Compute dice
-run_section_7=1
+run_section_7=0
 
 if [ "$run_section_1" -eq "1" ]; then
     echo "Running the first section:Partitioning"
 
- # Call the Python script to partition the C1 to C5 images (256x256) to 4 partitions (128x128)   
+ # Call the Python script to partition the small images (256x256) to 4 partitions (128x128)   
         python_script='
+
 import os
 import time
 import SimpleITK as sitk
 from multiprocessing import Pool
 
-def crop_and_save(input_file):
-    base_dir = os.environ["DATA"]
-    output_dir = os.environ["DATA"]
-
-    image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
-
-    # w/halo
-    cropped_size = (136, 136, image.GetDepth())
-    start_indices = [(0, 0, 0), (120, 0, 0), (0, 120, 0), (120, 120, 0)]
-
-    position_suffix = ["ru", "lu", "rl", "ll"]
-
-    input_path = os.path.join(base_dir, input_file)
-    input_image = sitk.ReadImage(input_path)
-    input_size = input_image.GetSize()
-    print(f"Input image: {input_file} | Size: {input_size}")
-
-    output_filenames = []
-    for j, start_index in enumerate(start_indices):
-        extract = sitk.ExtractImageFilter()
-        extract.SetSize(cropped_size)
-        extract.SetIndex(start_index)
-
-        start = time.time()
-        cropped_image = extract.Execute(input_image)
-        end = time.time()
-        print("Partitioning time:")
-        print(end - start)  # time in seconds
-        
-        cropped_image.SetSpacing(input_image.GetSpacing())
-        cropped_image.SetOrigin(input_image.GetOrigin())
-
-        position = position_suffix[j]
-        output_filename = f"{os.path.splitext(os.path.splitext(input_file)[0])[0]}_{position}.nii.gz"
-        output_path = os.path.join(output_dir, output_filename)
-
-        sitk.WriteImage(cropped_image, output_path)
-        output_filenames.append(output_filename)
-    return output_filenames
-
-if __name__ == "__main__":
-   
-
-    base_dir = os.environ["DATA"]
-    input_files = ["mr.nii.gz", "mt.nii.gz"]
-   
-    start = time.time()
-    # Create a pool of worker processes
-    with Pool(processes=len(input_files)) as pool:
-        output_filenames_list = pool.map(crop_and_save, input_files)
-
-    # Flatten the list of lists into a single list of output filenames
-    output_filenames = [item for sublist in output_filenames_list for item in sublist]
-
-    end = time.time()
-    print("Total time:")
-    print(end - start)  # time in seconds
-    print("Done!")
-
-    # Print the list of cropped image filenames
-    print("List of cropped image filenames:")
-    for filename in output_filenames:
-        print(filename)
-
-'
-    echo "${python_script}" | python 
-fi    
-
-if [ "$run_section_2" -eq "1" ]; then
-    echo "Running python_script_C6_10"
-    # Call the Python script to partition the C6 to C10 images (512x512) to 4 partitions (256x128)     
-    python_script='
-import os
-import SimpleITK as sitk
-import time
-
-def crop_and_save(input_image, start_indices, cropped_size, position_suffix):
+def crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix):
     output_filenames = []
     for j, start_index in enumerate(start_indices):
         extract = sitk.ExtractImageFilter()
@@ -155,39 +81,149 @@ def crop_and_save(input_image, start_indices, cropped_size, position_suffix):
         output_filenames.append(output_filename)
     return output_filenames
 
-start = time.time()
 
-base_dir = os.environ["DATA"]
-output_dir = os.environ["DATA"]
-input_files = ["mr.nii.gz", "mt.nii.gz"]
-
-image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
-
-#wo/halo
-cropped_size = (256, 128, image.GetDepth())
-start_indices = [(0, 100, 0),(256, 100, 0), (0,220,0), (256,220,0)]
-
-#w/halo
-#cropped_size = (264, 136, image.GetDepth())
-#start_indices = [(0, 128, 0),(248, 128, 0), (0,248,0), (248,248,0)]
-#start_indices = [(0, 100, 0),(248, 100, 0), (0,220,0), (248,220,0)]
-
-position_suffix = ["ru", "lu", "rl", "ll"]
-
-for input_file in input_files:
+def process_input_file(input_file, cropped_size, start_indices, position_suffix):
     input_path = os.path.join(base_dir, input_file)
     input_image = sitk.ReadImage(input_path)
     input_size = input_image.GetSize()
     print(f"Input image: {input_file} | Size: {input_size}")
 
-    output_filenames = crop_and_save(input_image, start_indices, cropped_size, position_suffix)
-   
+    output_filenames = crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix)
+
+def process_output_files(output_file, cropped_size, start_indices, position_suffix):
+    input_path = os.path.join(output_dir, output_file)
+    input_image = sitk.ReadImage(input_path)
+    input_size = input_image.GetSize()
+    print(f"Input image: {output_file} | Size: {input_size}")
+
+    output_filenames = crop_and_save(output_file, input_image, start_indices, cropped_size, position_suffix)
+
+
+base_dir = os.environ["DATA"]
+output_dir = os.environ["DATA"]
+input_files = ["mr.nii.gz", "mt.nii.gz"]
+    
+common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
+
+start = time.time()
+
+#2Patitions
+start_indices_2 = [(0, 0, 0), (int(common_image.GetWidth() / 2) - 8, 0, 0)]
+cropped_size_2 = (int(common_image.GetWidth()/2)+8, common_image.GetHeight(), common_image.GetDepth())
+position_suffix_2 = ["r", "l"]
+
+
+task = [(input_file, cropped_size_2, start_indices_2, position_suffix_2) for input_file in input_files]
+
+with Pool() as pool:
+    pool.starmap(process_input_file, task)
+
+common_image_2 = sitk.ReadImage(os.path.join(base_dir, "mr_l.nii.gz"))
+
+#4Partitions
+cropped_size_4 = (common_image_2.GetWidth(), int(common_image_2.GetHeight()/2)+8, common_image_2.GetDepth())
+start_indices_4 = [(0, 0, 0), (0, int(common_image_2.GetHeight()/2)-8, 0)]
+position_suffix_4 = ["u", "l"]
+
+output_files = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
+output_task = [(output_file, cropped_size_4, start_indices_4, position_suffix_4) for output_file in output_files]
+
+with Pool() as pool:
+    pool.starmap(process_output_files, output_task)
 
 end = time.time()
-print("Total time:")
-print(end - start)  # time in seconds
-print("Done!")
+print(end - start) 
 '
+    echo "${python_script}" | python 
+fi    
+
+if [ "$run_section_2" -eq "1" ]; then
+    echo "Running python_script_C6_10"
+    # Call the Python script to partition the C6 to C10 images (512x512) to 4 partitions (256x128)     
+    python_script='
+import os
+import time
+import SimpleITK as sitk
+from multiprocessing import Pool
+
+def crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix):
+    output_filenames = []
+    for j, start_index in enumerate(start_indices):
+        extract = sitk.ExtractImageFilter()
+        extract.SetSize(cropped_size)
+        extract.SetIndex(start_index)
+
+        start = time.time()
+        cropped_image = extract.Execute(input_image)
+        end = time.time()
+        print("Partitioning time:")
+        print(end - start) 
+
+        cropped_image.SetSpacing(input_image.GetSpacing())
+        cropped_image.SetOrigin(input_image.GetOrigin())
+
+        position = position_suffix[j]
+        output_filename = f"{os.path.splitext(os.path.splitext(input_file)[0])[0]}_{position}.nii.gz"
+        output_path = os.path.join(output_dir, output_filename)
+
+        sitk.WriteImage(cropped_image, output_path)
+        output_filenames.append(output_filename)
+    return output_filenames
+
+
+def process_input_file(input_file, cropped_size, start_indices, position_suffix):
+    input_path = os.path.join(base_dir, input_file)
+    input_image = sitk.ReadImage(input_path)
+    input_size = input_image.GetSize()
+    print(f"Input image: {input_file} | Size: {input_size}")
+
+    output_filenames = crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix)
+
+def process_output_files(output_file, cropped_size, start_indices, position_suffix):
+    input_path = os.path.join(output_dir, output_file)
+    input_image = sitk.ReadImage(input_path)
+    input_size = input_image.GetSize()
+    print(f"Input image: {output_file} | Size: {input_size}")
+
+    output_filenames = crop_and_save(output_file, input_image, start_indices, cropped_size, position_suffix)    
+
+base_dir = os.environ["DATA"]
+output_dir = os.environ["DATA"]
+input_files = ["mr.nii.gz", "mt.nii.gz"]
+    
+common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
+
+start = time.time()
+
+#2P
+start_indices_2 = [(0, 120, 0), (int(common_image.GetWidth() / 2) - 8, 120, 0)]
+cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
+position_suffix_2 = ["r", "l"]
+
+task = [(input_file, cropped_size_2, start_indices_2, position_suffix_2) for input_file in input_files]
+
+
+with Pool() as pool:
+    pool.starmap(process_input_file, task)
+
+common_image_2 = sitk.ReadImage(os.path.join(base_dir, "mr_l.nii.gz"))
+
+#4P
+cropped_size_4 = (common_image_2.GetWidth(), int(common_image_2.GetHeight()/2)+8, common_image_2.GetDepth())
+start_indices_4 = [(0, 0, 0), (0, int(common_image_2.GetHeight()/2)-8, 0)]
+position_suffix_4 = ["u", "l"]
+
+output_files = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
+output_task = [(output_file, cropped_size_4, start_indices_4, position_suffix_4) for output_file in output_files]
+
+with Pool() as pool:
+    pool.starmap(process_output_files, output_task)    
+
+end = time.time()
+print(end - start)  
+
+'
+
     echo "${python_script}" | python      
 fi
 
@@ -538,35 +574,25 @@ mask.SetOrigin((1,1,1))
 mask_deformed = sitk.ReadImage(os.path.join(data_path, "mask_tiled_deformed.nii.gz"))
 mask_deformed.SetOrigin(mask.GetOrigin())
 
-
 #Before and after
 segmentations = [mask, mask_deformed]
 
 class OverlapMeasures(Enum):
     jaccard, dice, volume_similarity, false_negative, false_positive = range(5)
 
+class SurfaceDistanceMeasures(Enum):
+    hausdorff_distance, mean_surface_distance, median_surface_distance, std_surface_distance, max_surface_distance = range(5)
+    
 # Empty numpy arrays to hold the results 
 overlap_results = np.zeros((len(segmentations),len(OverlapMeasures.__members__.items())))  
-
+ 
+# Compute the evaluation criteria
 overlap_measures_filter = sitk.LabelOverlapMeasuresImageFilter()
-hausdorff_distance_filter = sitk.HausdorffDistanceImageFilter()
-
-# Use the absolute values of the distance map to compute the surface distances (distance map sign, outside or inside 
-# relationship, is irrelevant)
-label = 1
-reference_distance_map = sitk.Abs(sitk.SignedMaurerDistanceMap(reference_segmentation, squaredDistance=False))
-reference_surface = sitk.LabelContour(reference_segmentation)
-
-statistics_image_filter = sitk.StatisticsImageFilter()
-# Get the number of pixels in the reference surface by counting all pixels that are 1.
-statistics_image_filter.Execute(reference_surface)
-num_reference_surface_pixels = int(statistics_image_filter.GetSum()) 
 
 for i, seg in enumerate(segmentations):
-    # Overlap measures
     overlap_measures_filter.Execute(reference_segmentation, seg)
     overlap_results[i,OverlapMeasures.dice.value] = overlap_measures_filter.GetDiceCoefficient()
-  
+    
 print ("Overlap Results (Dice) before and after:" ,overlap_results)    
 '
 
