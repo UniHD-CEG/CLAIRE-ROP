@@ -1,9 +1,6 @@
 
 # CLAIRE-ROP
 
-<img width="930" alt="CLAIRE-ROP" src="https://github.com/UniHD-CEG/CLAIRE-ROP/assets/62182727/054ef0fc-411a-4347-9437-96e80ce0fa51">
-
-
 
 
 Deformable Image Registration (DIR) is a complex process that involves calculating a deformation field to map one image onto another. This field describes the spatial transformation between the two images using mathematical algorithms. Due to its complexity, DIR requires substantial computational resources and time, posing challenges for time-sensitive medical applications like image-guided radiation therapy.
