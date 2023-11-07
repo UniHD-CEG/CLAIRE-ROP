@@ -5,10 +5,10 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
-#SBATCH --nodes=1 # number of nodes
+#SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 ##SBATCH --cpus-per-task=1
-#SBATCH --job-name=RapidClaire
+#SBATCH --job-name=Claire-ROP
 #SBATCH --output=%j.out
 
 #Load modules
@@ -16,113 +16,43 @@
 #module load  mpi/openmpi/4.0
 #module load  devel/cuda/11.6
 
+
 #Regularization parameter
 betacont=("5e-3")
 
-##8Partitions
-
 #Dataset
+#C1-C5
 DATA=/path/to/dataset
-
 
 export DATA
 
 #Set this flag to zero to ignore the edge partitions ["Case 9" and "Case 10"]
-result=0
+result=1
 
 # Set flags to control which sections to run
-#Partitioning(C1-C5)
-run_section_1=0
-#Partitioning(C6-C10)
-run_section_2=1
+#Partitioning(small dataset)
+run_section_1=1
+#Partitioning(large dataset)
+run_section_2=0
 #Run CLAIRE and get the warped images
-run_section_3=1
+run_section_3=0
 #Cropping & Merging
-run_section_4=1
-#Padding (C6-C10)
-run_section_5=1
+run_section_4=0
+#Padding (large dataset)
+run_section_5=0
 #Mask
-run_section_6=1
+run_section_6=0
 #Compute dice
-run_section_7=1
+run_section_7=0
 
 if [ "$run_section_1" -eq "1" ]; then
-    echo "Running the first section:Partitioning"
+    echo "Running the first section: Partitioning"
     # Call the Python script to partition the image (C1 to C5)     
         python_script='
 
 import os
 import SimpleITK as sitk
 import time
-
-def crop_and_save(input_image, start_indices, cropped_size, position_suffix):
-    output_filenames = []
-    for j, start_index in enumerate(start_indices):
-        extract = sitk.ExtractImageFilter()
-        extract.SetSize(cropped_size)
-        extract.SetIndex(start_index)
-
-        start = time.time()
-        cropped_image = extract.Execute(input_image)
-        end = time.time()
-        print("Partitioning time:")
-        print(end - start) 
-
-        cropped_image.SetSpacing(input_image.GetSpacing())
-        cropped_image.SetOrigin(input_image.GetOrigin())
-
-        position = position_suffix[j]
-        output_filename = f"{os.path.splitext(os.path.splitext(input_file)[0])[0]}_{position}.nii.gz"
-        output_path = os.path.join(output_dir, output_filename)
-
-        sitk.WriteImage(cropped_image, output_path)
-        output_filenames.append(output_filename)
-    return output_filenames
-
-start = time.time()
-
-base_dir = os.environ["DATA"]
-output_dir = os.environ["DATA"]
-input_files = ["mr.nii.gz", "mt.nii.gz"]
-
-image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
-
-#w/halo
-cropped_size_e = (72, 136, image.GetDepth())
-cropped_size_i = (80, 136, image.GetDepth())
-
-start_indices_e = [(0, 0, 0), (184, 0, 0), (0, 120, 0), (184, 120, 0)]
-start_indices_i = [(56, 0, 0), (120, 0, 0), (56, 120, 0), (120, 120, 0)]
-
-position_suffix_e = ["ru_1", "lu_2", "rl_1", "ll_2"]
-position_suffix_i = ["ru_2", "lu_1", "rl_2", "ll_1"]
-
-for input_file in input_files:
-    input_path = os.path.join(base_dir, input_file)
-    input_image = sitk.ReadImage(input_path)
-    input_size = input_image.GetSize()
-    print(f"Input image: {input_file} | Size: {input_size}")
-
-    output_filenames = crop_and_save(input_image, start_indices_e, cropped_size_e, position_suffix_e)
-    output_filenames += crop_and_save(input_image, start_indices_i, cropped_size_i, position_suffix_i)
-
-end = time.time()
-print("Cropping time:")
-print(end - start)  # time in seconds
-print("Done!")
-        '
-         echo "${python_script}" | python  
-fi         
-
-if [ "$run_section_2" -eq "1" ]; then
-    echo "Running the first section:Partitioning"
-  
-        # Call the Python script to partition the image (C6 to C10)     
-        python_script='
-import os
-import SimpleITK as sitk
-import time
-from multiprocessing import Pool
 
 def crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix):
     output_filenames = []
@@ -156,56 +86,202 @@ def process_input_file(input_file, cropped_size, start_indices, position_suffix)
 
     output_filenames = crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix)
 
-start = time.time()
 
 base_dir = os.environ["DATA"]
 output_dir = os.environ["DATA"]
 input_files = ["mr.nii.gz", "mt.nii.gz"]
+    
+common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
 
-image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
+start = time.time()
 
-#w/halo
-cropped_size_e = (136, 136, image.GetDepth())
-cropped_size_i = (144, 136, image.GetDepth())
+#2P
+start_indices_2 = [(0, 0, 0), (int(common_image.GetWidth() / 2) - 8, 0, 0)]
+cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
+position_suffix_2 = ["r", "l"]
 
-#C8(512x256)
-start_indices_e = [(0, 100, 0), (376, 100, 0), (0, 220, 0), (376, 220, 0)]
-start_indices_i = [(120, 100, 0), (248, 100, 0), (120, 220, 0), (248, 220, 0)]
+task = [(input_file, cropped_size_2, start_indices_2, position_suffix_2) for input_file in input_files]
 
-position_suffix_e = ["ru_1", "lu_2", "rl_1", "ll_2"]
-position_suffix_i = ["ru_2", "lu_1", "rl_2", "ll_1"]
-
-# Create a list of tuples to pass as arguments for parallel execution
-tasks = [(input_file, cropped_size_e, start_indices_e, position_suffix_e) for input_file in input_files] + \
-        [(input_file, cropped_size_i, start_indices_i, position_suffix_i) for input_file in input_files]
-
-# Create a pool of workers for parallel execution
 with Pool() as pool:
-    pool.starmap(process_input_file, tasks)
+    pool.starmap(process_input_file, task)
+
+common_image_2 = sitk.ReadImage(os.path.join(base_dir, "mr_l.nii.gz"))
+
+#4P
+cropped_size_4 = (common_image_2.GetWidth(), int(common_image_2.GetHeight()/2)+8, common_image_2.GetDepth())
+start_indices_4 = [(0, 0, 0), (0, int(common_image_2.GetHeight()/2)-8, 0)]
+position_suffix_4 = ["u", "l"]
+
+input_files_4 = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
+input_task_4 = [(input_file, cropped_size_4, start_indices_4, position_suffix_4) for input_file in input_files_4]
+
+with Pool() as pool:
+    pool.starmap(process_input_file, input_task_4)
+
+
+common_image_3 = sitk.ReadImage(os.path.join(base_dir, "mr_l_l.nii.gz"))
+
+#8P
+input_files_8_r = ["mr_r_u.nii.gz", "mr_r_l.nii.gz","mt_r_u.nii.gz", "mt_r_l.nii.gz"]
+start_indices_8_r_e = [(0, 0, 0)]
+start_indices_8_r_i = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
+#######
+input_files_8_l = ["mr_l_u.nii.gz", "mr_l_l.nii.gz","mt_l_u.nii.gz", "mt_l_l.nii.gz"]
+start_indices_8_l_i = [(0, 0, 0)]
+start_indices_8_l_e = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
+
+
+cropped_size_8_i = (int((common_image_3.GetWidth()-8)/2)+16, common_image_3.GetHeight(), common_image_3.GetDepth())
+cropped_size_8_e = (int((common_image_3.GetWidth()-8)/2)+8, common_image_3.GetHeight(), common_image_3.GetDepth())
+position_suffix_8_i = ["i"]
+position_suffix_8_e = ["e"]
+
+input_task_8_r_i = [(input_file, cropped_size_8_i, start_indices_8_r_i, position_suffix_8_i) for input_file in input_files_8_r]
+input_task_8_r_e = [(input_file, cropped_size_8_e, start_indices_8_r_e, position_suffix_8_e) for input_file in input_files_8_r]
+
+input_task_8_l_i = [(input_file, cropped_size_8_i, start_indices_8_l_i, position_suffix_8_i) for input_file in input_files_8_l]
+input_task_8_l_e = [(input_file, cropped_size_8_e, start_indices_8_l_e, position_suffix_8_e) for input_file in input_files_8_l]
+
+
+with Pool() as pool:
+    pool.starmap(process_input_file, input_task_8_r_i)
+    pool.starmap(process_input_file, input_task_8_r_e)
+    pool.starmap(process_input_file, input_task_8_l_i)
+    pool.starmap(process_input_file, input_task_8_l_e)
 
 end = time.time()
-print("Total time:")
-print(end - start)  # time in seconds
-print("Done!")
+print(end - start) 
+        '
+         echo "${python_script}" | python  
+fi         
+
+if [ "$run_section_2" -eq "1" ]; then
+    echo "Running the second section: Partitioning"
+  
+        # Call the Python script to partition the image (C6 to C10)     
+        python_script='
+import os
+import SimpleITK as sitk
+import time
+from multiprocessing import Pool
+
+def crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix):
+    output_filenames = []
+    for j, start_index in enumerate(start_indices):
+        extract = sitk.ExtractImageFilter()
+        extract.SetSize(cropped_size)
+        extract.SetIndex(start_index)
+
+        start = time.time()
+        cropped_image = extract.Execute(input_image)
+        end = time.time()
+        print("Partitioning time:")
+        print(end - start) 
+
+        cropped_image.SetSpacing(input_image.GetSpacing())
+        cropped_image.SetOrigin(input_image.GetOrigin())
+
+        position = position_suffix[j]
+        output_filename = f"{os.path.splitext(os.path.splitext(input_file)[0])[0]}_{position}.nii.gz"
+        output_path = os.path.join(output_dir, output_filename)
+
+        sitk.WriteImage(cropped_image, output_path)
+        output_filenames.append(output_filename)
+    return output_filenames
+
+
+def process_input_file(input_file, cropped_size, start_indices, position_suffix):
+    input_path = os.path.join(base_dir, input_file)
+    input_image = sitk.ReadImage(input_path)
+    input_size = input_image.GetSize()
+    print(f"Input image: {input_file} | Size: {input_size}")
+
+    output_filenames = crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix)
+
+base_dir = os.environ["DATA"]
+output_dir = os.environ["DATA"]
+input_files = ["mr.nii.gz", "mt.nii.gz"]
+    
+common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
+
+start = time.time()
+
+#2P
+start_indices_2 = [(0, 120, 0), (int(common_image.GetWidth() / 2) - 8, 120, 0)]
+cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
+position_suffix_2 = ["r", "l"]
+
+task = [(input_file, cropped_size_2, start_indices_2, position_suffix_2) for input_file in input_files]
+
+
+with Pool() as pool:
+    pool.starmap(process_input_file, task)
+
+common_image_2 = sitk.ReadImage(os.path.join(base_dir, "mr_l.nii.gz"))
+
+#4P
+cropped_size_4 = (common_image_2.GetWidth(), int(common_image_2.GetHeight()/2)+8, common_image_2.GetDepth())
+start_indices_4 = [(0, 0, 0), (0, int(common_image_2.GetHeight()/2)-8, 0)]
+position_suffix_4 = ["u", "l"]
+
+input_files_4 = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
+input_task_4 = [(input_file, cropped_size_4, start_indices_4, position_suffix_4) for input_file in input_files_4]
+
+with Pool() as pool:
+    pool.starmap(process_input_file, input_task_4)
+
+
+common_image_3 = sitk.ReadImage(os.path.join(base_dir, "mr_l_l.nii.gz"))
+
+#8P
+input_files_8_r = ["mr_r_u.nii.gz", "mr_r_l.nii.gz","mt_r_u.nii.gz", "mt_r_l.nii.gz"]
+start_indices_8_r_e = [(0, 0, 0)]
+start_indices_8_r_i = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
+#######
+input_files_8_l = ["mr_l_u.nii.gz", "mr_l_l.nii.gz","mt_l_u.nii.gz", "mt_l_l.nii.gz"]
+start_indices_8_l_i = [(0, 0, 0)]
+start_indices_8_l_e = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
+
+
+cropped_size_8_i = (int((common_image_3.GetWidth()-8)/2)+16, common_image_3.GetHeight(), common_image_3.GetDepth())
+cropped_size_8_e = (int((common_image_3.GetWidth()-8)/2)+8, common_image_3.GetHeight(), common_image_3.GetDepth())
+position_suffix_8_i = ["i"]
+position_suffix_8_e = ["e"]
+
+input_task_8_r_i = [(input_file, cropped_size_8_i, start_indices_8_r_i, position_suffix_8_i) for input_file in input_files_8_r]
+input_task_8_r_e = [(input_file, cropped_size_8_e, start_indices_8_r_e, position_suffix_8_e) for input_file in input_files_8_r]
+
+input_task_8_l_i = [(input_file, cropped_size_8_i, start_indices_8_l_i, position_suffix_8_i) for input_file in input_files_8_l]
+input_task_8_l_e = [(input_file, cropped_size_8_e, start_indices_8_l_e, position_suffix_8_e) for input_file in input_files_8_l]
+
+
+with Pool() as pool:
+    pool.starmap(process_input_file, input_task_8_r_i)
+    pool.starmap(process_input_file, input_task_8_r_e)
+    pool.starmap(process_input_file, input_task_8_l_i)
+    pool.starmap(process_input_file, input_task_8_l_e)
+
+end = time.time()
+print(end - start) 
 '
     echo "${python_script}" | python      
 fi
 
 
 if [ "$run_section_3" -eq "1" ]; then
-   echo "Running the third section:Run CLAIRE and getting the warped image"
+   echo "Running the third section: Run CLAIRE and get the warped image"
 
 #inner partitions (4P)
-Partition_mt=("mt_ru_2" "mt_lu_1" "mt_rl_2" "mt_ll_1")
-Partition_mr=("mr_ru_2" "mr_lu_1" "mr_rl_2" "mr_ll_1")
+Partition_mt=("mt_r_u_e" "mt_l_u_i" "mt_r_l_e" "mt_l_l_i")
+Partition_mr=("mr_r_u_e" "mr_l_u_i" "mr_r_l_e" "mr_l_l_i")
 P=("RU" "LU" "RL" "LL")
 
 #all partitions
-All_partition_mt=("mt_ru_1" "mt_ru_2" "mt_lu_1" "mt_lu_2" "mt_rl_1" "mt_rl_2" "mt_ll_1" "mt_ll_2")
-All_partition_mr=("mr_ru_1" "mr_ru_2" "mr_lu_1" "mr_lu_2" "mr_rl_1" "mr_rl_2" "mr_ll_1" "mr_ll_2")
+All_partition_mt=("mt_r_u_i" "mt_r_u_e" "mt_l_u_i" "mt_l_u_e" "mt_r_l_i" "mt_r_l_e" "mt_l_l_i" "mt_l_l_e")
+All_partition_mr=("mr_r_u_i" "mr_r_u_e" "mr_l_u_i" "mr_l_u_e" "mr_r_l_i" "mr_r_l_e" "mr_l_l_i" "mr_l_l_e")
 All_P=("RU_1" "RU_2" "LU_1" "LU_2" "RL_1" "RL_2" "LL_1" "LL_2")
 
-#Define a function to run the registration command to get deofrmation maps
+#Define a function to run the registration command to get deformation maps
 run_registration_defmap() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -219,7 +295,7 @@ run_registration_defmap() {
      -x  "$DATA/${defmap_name}_"  -defmap
 }
 
-#Define a function to run the registration command to get registration time
+#Define a function to run the registration command to get the registration time
 run_registration_time() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -257,10 +333,10 @@ if [ "$result" -eq "0" ]; then
 # Define the list of cases and corresponding arguments
 cases=("LL" "LU" "RL" "RU")
 args_ifile=(
-    $DATA/mt_ll_1.nii.gz
-    $DATA/mt_lu_1.nii.gz
-    $DATA/mt_rl_2.nii.gz
-    $DATA/mt_ru_2.nii.gz
+    $DATA/mt_l_l_i.nii.gz
+    $DATA/mt_l_u_i.nii.gz
+    $DATA/mt_r_l_e.nii.gz
+    $DATA/mt_r_u_e.nii.gz
 )
 args_xfile=(
     $DATA/deformed_mt_ll_1.nii.gz
@@ -272,14 +348,14 @@ else
 
 cases=("LL_1" "LL_2" "LU_1" "LU_2" "RL_1" "RL_2" "RU_1" "RU_2")
 args_ifile=(
-    $DATA/mt_ll_1.nii.gz
-    $DATA/mt_ll_2.nii.gz
-    $DATA/mt_lu_1.nii.gz
-    $DATA/mt_lu_2.nii.gz
-    $DATA/mt_rl_1.nii.gz
-    $DATA/mt_rl_2.nii.gz
-    $DATA/mt_ru_1.nii.gz
-    $DATA/mt_ru_2.nii.gz
+    $DATA/mt_l_l_i.nii.gz
+    $DATA/mt_l_l_e.nii.gz
+    $DATA/mt_l_u_i.nii.gz
+    $DATA/mt_l_u_e.nii.gz
+    $DATA/mt_r_l_i.nii.gz
+    $DATA/mt_r_l_e.nii.gz
+    $DATA/mt_r_u_i.nii.gz
+    $DATA/mt_r_u_e.nii.gz
 )
 args_xfile=(
     $DATA/deformed_mt_ll_1.nii.gz
@@ -630,74 +706,16 @@ class SurfaceDistanceMeasures(Enum):
     
 # Empty numpy arrays to hold the results 
 overlap_results = np.zeros((len(segmentations),len(OverlapMeasures.__members__.items())))  
-surface_distance_results = np.zeros((len(segmentations),len(SurfaceDistanceMeasures.__members__.items())))  
-
+ 
 # Compute the evaluation criteria
-
-# Note that for the overlap measures filter, because we are dealing with a single label we 
-# use the combined, all labels, evaluation measures without passing a specific label to the methods.
 overlap_measures_filter = sitk.LabelOverlapMeasuresImageFilter()
 
-hausdorff_distance_filter = sitk.HausdorffDistanceImageFilter()
-
-# Use the absolute values of the distance map to compute the surface distances (distance map sign, outside or inside 
-# relationship, is irrelevant)
-label = 1
-reference_distance_map = sitk.Abs(sitk.SignedMaurerDistanceMap(reference_segmentation, squaredDistance=False))
-reference_surface = sitk.LabelContour(reference_segmentation)
-
-statistics_image_filter = sitk.StatisticsImageFilter()
-# Get the number of pixels in the reference surface by counting all pixels that are 1.
-statistics_image_filter.Execute(reference_surface)
-num_reference_surface_pixels = int(statistics_image_filter.GetSum()) 
-
-print ("Overlap_measure")
-
 for i, seg in enumerate(segmentations):
-    # Overlap measures
     overlap_measures_filter.Execute(reference_segmentation, seg)
-    #overlap_results[i,OverlapMeasures.jaccard.value] = overlap_measures_filter.GetJaccardCoefficient()
     overlap_results[i,OverlapMeasures.dice.value] = overlap_measures_filter.GetDiceCoefficient()
-    #overlap_results[i,OverlapMeasures.volume_similarity.value] = overlap_measures_filter.GetVolumeSimilarity()
-    #overlap_results[i,OverlapMeasures.false_negative.value] = overlap_measures_filter.GetFalseNegativeError()
-    #overlap_results[i,OverlapMeasures.false_positive.value] = overlap_measures_filter.GetFalsePositiveError()
     
-    # Hausdorff distance
-    #hausdorff_distance_filter.Execute(reference_segmentation, seg)
-    #surface_distance_results[i,SurfaceDistanceMeasures.hausdorff_distance.value] = hausdorff_distance_filter.GetHausdorffDistance()
-    # Symmetric surface distance measures
-    #segmented_distance_map = sitk.Abs(sitk.SignedMaurerDistanceMap(seg, squaredDistance=False))
-    #segmented_surface = sitk.LabelContour(seg)
-        
-    # Multiply the binary surface segmentations with the distance maps. The resulting distance
-    # maps contain non-zero values only on the surface (they can also contain zero on the surface)
-    #seg2ref_distance_map = reference_distance_map*sitk.Cast(segmented_surface, sitk.sitkFloat32)
-    #ref2seg_distance_map = segmented_distance_map*sitk.Cast(reference_surface, sitk.sitkFloat32)
-        
-    # Get the number of pixels in the segmented surface by counting all pixels that are 1.
-    #statistics_image_filter.Execute(segmented_surface)
-    #num_segmented_surface_pixels = int(statistics_image_filter.GetSum())
-    
-    # Get all non-zero distances and then add zero distances if required.
-    #seg2ref_distance_map_arr = sitk.GetArrayViewFromImage(seg2ref_distance_map)
-    #seg2ref_distances = list(seg2ref_distance_map_arr[seg2ref_distance_map_arr!=0]) 
-    #seg2ref_distances = seg2ref_distances + \
-     #                   list(np.zeros(num_segmented_surface_pixels - len(seg2ref_distances)))
-    #ref2seg_distance_map_arr = sitk.GetArrayViewFromImage(ref2seg_distance_map)
-    #ref2seg_distances = list(ref2seg_distance_map_arr[ref2seg_distance_map_arr!=0]) 
-    #ref2seg_distances = ref2seg_distances + \
-      #                  list(np.zeros(num_reference_surface_pixels - len(ref2seg_distances)))
-        
-    #all_surface_distances = seg2ref_distances + ref2seg_distances
-    
-    #surface_distance_results[i,SurfaceDistanceMeasures.mean_surface_distance.value] = np.mean(all_surface_distances)
-    #surface_distance_results[i,SurfaceDistanceMeasures.median_surface_distance.value] = np.median(all_surface_distances)
-    #surface_distance_results[i,SurfaceDistanceMeasures.std_surface_distance.value] = np.std(all_surface_distances)
-    #surface_distance_results[i,SurfaceDistanceMeasures.max_surface_distance.value] = np.max(all_surface_distances)
-
 print ("Overlap Results (Dice) before and after:" ,overlap_results)    
 '
 
-echo "${python_script_7}" | python > $DATA/overlap_8_4_"$betacont"
-
+echo "${python_script_7}" | python > $DATA/overlap_"$betacont"
 fi
