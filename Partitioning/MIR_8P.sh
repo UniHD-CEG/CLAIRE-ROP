@@ -53,6 +53,7 @@ if [ "$run_section_1" -eq "1" ]; then
 import os
 import SimpleITK as sitk
 import time
+from multiprocessing import Pool
 
 def crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix):
     output_filenames = []
