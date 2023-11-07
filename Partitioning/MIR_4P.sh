@@ -15,8 +15,8 @@
 #module load  mpi/openmpi/4.0
 
 
-TS=/home/hk-project-irmulti/hd_fa163/TotalSegmentator/bin
-source /home/hk-project-irmulti/hd_fa163/Claire/claire/deps/env_source.sh
+TS=/home/.../TotalSegmentator/bin
+source /home/.../claire/deps/env_source.sh
 
 #Regularization parameter
 betacont=("5e-3")
@@ -47,7 +47,7 @@ run_section_6=0
 run_section_7=0
 
 if [ "$run_section_1" -eq "1" ]; then
-    echo "Running the first section:Partitioning"
+    echo "Running the first section: Partitioning"
 
  # Call the Python script to partition the small images (256x256) to 4 partitions (128x128)   
         python_script='
@@ -90,14 +90,6 @@ def process_input_file(input_file, cropped_size, start_indices, position_suffix)
 
     output_filenames = crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix)
 
-def process_output_files(output_file, cropped_size, start_indices, position_suffix):
-    input_path = os.path.join(output_dir, output_file)
-    input_image = sitk.ReadImage(input_path)
-    input_size = input_image.GetSize()
-    print(f"Input image: {output_file} | Size: {input_size}")
-
-    output_filenames = crop_and_save(output_file, input_image, start_indices, cropped_size, position_suffix)
-
 
 base_dir = os.environ["DATA"]
 output_dir = os.environ["DATA"]
@@ -125,11 +117,11 @@ cropped_size_4 = (common_image_2.GetWidth(), int(common_image_2.GetHeight()/2)+8
 start_indices_4 = [(0, 0, 0), (0, int(common_image_2.GetHeight()/2)-8, 0)]
 position_suffix_4 = ["u", "l"]
 
-output_files = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
-output_task = [(output_file, cropped_size_4, start_indices_4, position_suffix_4) for output_file in output_files]
+input_files_4 = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
+input_task_4 = [(input_file, cropped_size_4, start_indices_4, position_suffix_4) for input_file in input_files_4]
 
 with Pool() as pool:
-    pool.starmap(process_output_files, output_task)
+    pool.starmap(process_input_file, input_task_4)
 
 end = time.time()
 print(end - start) 
@@ -138,7 +130,7 @@ print(end - start)
 fi    
 
 if [ "$run_section_2" -eq "1" ]; then
-    echo "Running python_script_C6_10"
+    echo "Running the second section: Partitioning"
     # Call the Python script to partition the C6 to C10 images (512x512) to 4 partitions (256x128)     
     python_script='
 import os
@@ -179,13 +171,6 @@ def process_input_file(input_file, cropped_size, start_indices, position_suffix)
 
     output_filenames = crop_and_save(input_file, input_image, start_indices, cropped_size, position_suffix)
 
-def process_output_files(output_file, cropped_size, start_indices, position_suffix):
-    input_path = os.path.join(output_dir, output_file)
-    input_image = sitk.ReadImage(input_path)
-    input_size = input_image.GetSize()
-    print(f"Input image: {output_file} | Size: {input_size}")
-
-    output_filenames = crop_and_save(output_file, input_image, start_indices, cropped_size, position_suffix)    
 
 base_dir = os.environ["DATA"]
 output_dir = os.environ["DATA"]
@@ -213,11 +198,11 @@ cropped_size_4 = (common_image_2.GetWidth(), int(common_image_2.GetHeight()/2)+8
 start_indices_4 = [(0, 0, 0), (0, int(common_image_2.GetHeight()/2)-8, 0)]
 position_suffix_4 = ["u", "l"]
 
-output_files = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
-output_task = [(output_file, cropped_size_4, start_indices_4, position_suffix_4) for output_file in output_files]
+input_files_4 = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
+input_task_4 = [(input_file, cropped_size_4, start_indices_4, position_suffix_4) for input_file in input_files_4]
 
 with Pool() as pool:
-    pool.starmap(process_output_files, output_task)    
+    pool.starmap(process_input_file, input_task_4)    
 
 end = time.time()
 print(end - start)  
@@ -231,12 +216,12 @@ if [ "$run_section_3" -eq "1" ]; then
    echo "Running the second section:Run CLAIRE and getting the warped image"
 
 
-Partition_mt=("mt_ru" "mt_lu" "mt_rl" "mt_ll")
-Partition_mr=("mr_ru" "mr_lu" "mr_rl" "mr_ll")
+Partition_mt=("mt_r_u" "mt_l_u" "mt_r_l" "mt_l_l")
+Partition_mr=("mr_r_u" "mr_l_u" "mr_r_l" "mr_l_l")
 P=("RU" "LU" "RL" "LL")
 
 
-#Define a function to run the registration command to get deofrmation maps
+#Define a function to run the registration command to get deformation maps
 run_registration_defmap() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -250,7 +235,7 @@ run_registration_defmap() {
      -x  "$DATA/${defmap_name}_"  -defmap
 }
 
-#Define a function to run the registration command to get registration time
+#Define a function to run the registration command to get the registration time
 run_registration_time() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -275,10 +260,10 @@ run_registration_time() {
    
 cases=("LL" "LU" "RL" "RU")
 args_ifile=(
-    $DATA/mt_ll.nii.gz
-    $DATA/mt_lu.nii.gz
-    $DATA/mt_rl.nii.gz
-    $DATA/mt_ru.nii.gz
+    $DATA/mt_l_l.nii.gz
+    $DATA/mt_l_u.nii.gz
+    $DATA/mt_r_l.nii.gz
+    $DATA/mt_r_u.nii.gz
 )
 args_xfile=(
     $DATA/deformed_mt_ll.nii.gz
