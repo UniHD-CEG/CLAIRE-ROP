@@ -21,7 +21,6 @@
 betacont=("5e-3")
 
 #Dataset
-#C1-C5
 DATA=/path/to/dataset
 
 export DATA
@@ -208,7 +207,7 @@ common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
 start = time.time()
 
 #2P
-start_indices_2 = [(0, 120, 0), (int(common_image.GetWidth() / 2) - 8, 120, 0)]
+start_indices_2 = [(0, 128, 0), (int(common_image.GetWidth() / 2) - 8, 128, 0)]
 cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
 position_suffix_2 = ["r", "l"]
 
