@@ -7,8 +7,7 @@
 #SBATCH -e stderr.e
 #SBATCH --nodes=1 # number of nodes
 #SBATCH --ntasks-per-node=1
-##SBATCH --cpus-per-task=1
-#SBATCH --job-name=RapidClaire
+#SBATCH --job-name=Claire-ROP
 #SBATCH --output=%j.out
 
 #module load  compiler/gnu/10
@@ -21,8 +20,6 @@ source /home/.../claire/deps/env_source.sh
 #Regularization parameter
 betacont=("5e-3")
 
-##4Partitions
-
 ##Dataset
 DATA=/path/to/dataset
 
@@ -34,17 +31,17 @@ export DATA
 #Partitioning(C1-C5), small images
 run_section_1=0
 #Partitioning(C6-C10), large images
-run_section_2=0
+run_section_2=1
 #Run CLAIRE and get the warped images
-run_section_3=0
+run_section_3=1
 #Cropping & Merging
-run_section_4=0
+run_section_4=1
 #Padding (for large images)
-run_section_5=0
+run_section_5=1
 #Mask
-run_section_6=0
+run_section_6=1
 #Compute dice
-run_section_7=0
+run_section_7=1
 
 if [ "$run_section_1" -eq "1" ]; then
     echo "Running the first section: Partitioning"
@@ -130,7 +127,7 @@ print(end - start)
 fi    
 
 if [ "$run_section_2" -eq "1" ]; then
-    echo "Running the second section: Partitioning"
+      echo "Running the second section: Partitioning"
     # Call the Python script to partition the C6 to C10 images (512x512) to 4 partitions (256x128)     
     python_script='
 import os
@@ -180,8 +177,8 @@ common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
 
 start = time.time()
 
-#2P
-start_indices_2 = [(0, 120, 0), (int(common_image.GetWidth() / 2) - 8, 120, 0)]
+#2P & remove background
+start_indices_2 = [(0, 128, 0), (int(common_image.GetWidth() / 2) - 8, 128, 0)]
 cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
 position_suffix_2 = ["r", "l"]
 
@@ -213,7 +210,7 @@ print(end - start)
 fi
 
 if [ "$run_section_3" -eq "1" ]; then
-   echo "Running the second section:Run CLAIRE and getting the warped image"
+   echo "Running the second section: Run CLAIRE and get the warped image"
 
 
 Partition_mt=("mt_r_u" "mt_l_u" "mt_r_l" "mt_l_l")
@@ -500,11 +497,11 @@ data_path = os.environ["DATA"]
 pad = sitk.ConstantPadImageFilter()
 input =  sitk.ReadImage(os.path.join(data_path, "tiled_deformed_mt.nii.gz")) 
 
-#pad.SetPadLowerBound((0,128,0)) 
-#pad.SetPadUpperBound((0,128,0))
+pad.SetPadLowerBound((0,128,0)) 
+pad.SetPadUpperBound((0,128,0))
 
-pad.SetPadLowerBound((0,100,0)) 
-pad.SetPadUpperBound((0,156,0))
+#pad.SetPadLowerBound((0,100,0)) 
+#pad.SetPadUpperBound((0,156,0))
 
 pad_img = pad.Execute(input)
 pad_img.SetOrigin((1,1,1))
@@ -578,7 +575,7 @@ for i, seg in enumerate(segmentations):
     overlap_measures_filter.Execute(reference_segmentation, seg)
     overlap_results[i,OverlapMeasures.dice.value] = overlap_measures_filter.GetDiceCoefficient()
     
-print ("Overlap Results (Dice) before and after:" ,overlap_results)    
+print ("Overlap Results (Dice) before and after:",overlap_results)    
 '
 
 echo "${python_script_7}" | python > $DATA/overlap_"$betacont"
