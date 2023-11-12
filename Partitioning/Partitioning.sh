@@ -14,7 +14,7 @@
 #module load  mpi/openmpi/4.0
 
 
-DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C1/2P
+DATA=/path/to/datase
 export DATA
 
 export SLURM_GPUS=2  # Set SLURM_GPUS to the desired GPU count
