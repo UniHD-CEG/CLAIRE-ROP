@@ -34,18 +34,18 @@ run_section_1=1
 #Partitioning(large dataset)
 run_section_2=0
 #Run CLAIRE and get the warped images
-run_section_3=0
+run_section_3=1
 #Cropping & Merging
-run_section_4=0
+run_section_4=1
 #Padding (large dataset)
 run_section_5=0
 #Mask
-run_section_6=0
+run_section_6=1
 #Compute dice
-run_section_7=0
+run_section_7=1
 
 if [ "$run_section_1" -eq "1" ]; then
-    echo "Running the first section: Partitioning"
+    echo "Running the first section:Partitioning"
     # Call the Python script to partition the image (C1 to C5)     
         python_script='
 
@@ -97,7 +97,7 @@ start = time.time()
 
 #2P
 start_indices_2 = [(0, 0, 0), (int(common_image.GetWidth() / 2) - 8, 0, 0)]
-cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
+cropped_size_2 = (int(common_image.GetWidth()/2)+8, common_image.GetHeight(), common_image.GetDepth())
 position_suffix_2 = ["r", "l"]
 
 task = [(input_file, cropped_size_2, start_indices_2, position_suffix_2) for input_file in input_files]
@@ -128,11 +128,10 @@ start_indices_8_r_i = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
 #######
 input_files_8_l = ["mr_l_u.nii.gz", "mr_l_l.nii.gz","mt_l_u.nii.gz", "mt_l_l.nii.gz"]
 start_indices_8_l_i = [(0, 0, 0)]
-start_indices_8_l_e = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
+start_indices_8_l_e = [(int((common_image_3.GetWidth()-8) / 2) , 0, 0)]
 
-
-cropped_size_8_i = (int((common_image_3.GetWidth()-8)/2)+16, common_image_3.GetHeight(), common_image_3.GetDepth())
-cropped_size_8_e = (int((common_image_3.GetWidth()-8)/2)+8, common_image_3.GetHeight(), common_image_3.GetDepth())
+cropped_size_8_i = (int((common_image_3.GetWidth()-8)//2)+16, common_image_3.GetHeight(), common_image_3.GetDepth())
+cropped_size_8_e = (int((common_image_3.GetWidth()-8)//2)+8, common_image_3.GetHeight(), common_image_3.GetDepth())
 position_suffix_8_i = ["i"]
 position_suffix_8_e = ["e"]
 
@@ -146,8 +145,9 @@ input_task_8_l_e = [(input_file, cropped_size_8_e, start_indices_8_l_e, position
 with Pool() as pool:
     pool.starmap(process_input_file, input_task_8_r_i)
     pool.starmap(process_input_file, input_task_8_r_e)
-    pool.starmap(process_input_file, input_task_8_l_i)
     pool.starmap(process_input_file, input_task_8_l_e)
+    pool.starmap(process_input_file, input_task_8_l_i)
+    
 
 end = time.time()
 print(end - start) 
@@ -156,7 +156,7 @@ print(end - start)
 fi         
 
 if [ "$run_section_2" -eq "1" ]; then
-    echo "Running the second section: Partitioning"
+    echo "Running the first section:Partitioning"
   
         # Call the Python script to partition the image (C6 to C10)     
         python_script='
@@ -207,7 +207,7 @@ common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
 start = time.time()
 
 #2P
-start_indices_2 = [(0, 128, 0), (int(common_image.GetWidth() / 2) - 8, 128, 0)]
+start_indices_2 = [(0, 100, 0), (int(common_image.GetWidth() / 2) - 8, 100, 0)]
 cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
 position_suffix_2 = ["r", "l"]
 
@@ -227,6 +227,7 @@ position_suffix_4 = ["u", "l"]
 input_files_4 = ["mr_r.nii.gz", "mr_l.nii.gz", "mt_r.nii.gz", "mt_l.nii.gz"]
 input_task_4 = [(input_file, cropped_size_4, start_indices_4, position_suffix_4) for input_file in input_files_4]
 
+
 with Pool() as pool:
     pool.starmap(process_input_file, input_task_4)
 
@@ -240,11 +241,12 @@ start_indices_8_r_i = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
 #######
 input_files_8_l = ["mr_l_u.nii.gz", "mr_l_l.nii.gz","mt_l_u.nii.gz", "mt_l_l.nii.gz"]
 start_indices_8_l_i = [(0, 0, 0)]
-start_indices_8_l_e = [(int((common_image_3.GetWidth()-8) / 2) - 8, 0, 0)]
+start_indices_8_l_e = [(int((common_image_3.GetWidth()-8) / 2) , 0, 0)]
 
 
 cropped_size_8_i = (int((common_image_3.GetWidth()-8)/2)+16, common_image_3.GetHeight(), common_image_3.GetDepth())
 cropped_size_8_e = (int((common_image_3.GetWidth()-8)/2)+8, common_image_3.GetHeight(), common_image_3.GetDepth())
+
 position_suffix_8_i = ["i"]
 position_suffix_8_e = ["e"]
 
@@ -269,19 +271,19 @@ fi
 
 
 if [ "$run_section_3" -eq "1" ]; then
-   echo "Running the third section: Run CLAIRE and get the warped image"
+   echo "Running the third section:Run CLAIRE and getting the warped image"
 
 #inner partitions (4P)
-Partition_mt=("mt_r_u_e" "mt_l_u_i" "mt_r_l_e" "mt_l_l_i")
-Partition_mr=("mr_r_u_e" "mr_l_u_i" "mr_r_l_e" "mr_l_l_i")
+Partition_mt=("mt_r_u_i" "mt_l_u_i" "mt_r_l_i" "mt_l_l_i")
+Partition_mr=("mr_r_u_i" "mr_l_u_i" "mr_r_l_i" "mr_l_l_i")
 P=("RU" "LU" "RL" "LL")
 
 #all partitions
-All_partition_mt=("mt_r_u_i" "mt_r_u_e" "mt_l_u_i" "mt_l_u_e" "mt_r_l_i" "mt_r_l_e" "mt_l_l_i" "mt_l_l_e")
-All_partition_mr=("mr_r_u_i" "mr_r_u_e" "mr_l_u_i" "mr_l_u_e" "mr_r_l_i" "mr_r_l_e" "mr_l_l_i" "mr_l_l_e")
+All_partition_mt=("mt_r_u_e" "mt_r_u_i" "mt_l_u_i" "mt_l_u_e" "mt_r_l_e" "mt_r_l_i" "mt_l_l_i" "mt_l_l_e")
+All_partition_mr=("mr_r_u_e" "mr_r_u_i" "mr_l_u_i" "mr_l_u_e" "mr_r_l_e" "mr_r_l_i" "mr_l_l_i" "mr_l_l_e")
 All_P=("RU_1" "RU_2" "LU_1" "LU_2" "RL_1" "RL_2" "LL_1" "LL_2")
 
-#Define a function to run the registration command to get deformation maps
+#Define a function to run the registration command to get deofrmation maps
 run_registration_defmap() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -295,7 +297,7 @@ run_registration_defmap() {
      -x  "$DATA/${defmap_name}_"  -defmap
 }
 
-#Define a function to run the registration command to get the registration time
+#Define a function to run the registration command to get registration time
 run_registration_time() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -335,8 +337,8 @@ cases=("LL" "LU" "RL" "RU")
 args_ifile=(
     $DATA/mt_l_l_i.nii.gz
     $DATA/mt_l_u_i.nii.gz
-    $DATA/mt_r_l_e.nii.gz
-    $DATA/mt_r_u_e.nii.gz
+    $DATA/mt_r_l_i.nii.gz
+    $DATA/mt_r_u_i.nii.gz
 )
 args_xfile=(
     $DATA/deformed_mt_ll_1.nii.gz
@@ -352,10 +354,10 @@ args_ifile=(
     $DATA/mt_l_l_e.nii.gz
     $DATA/mt_l_u_i.nii.gz
     $DATA/mt_l_u_e.nii.gz
-    $DATA/mt_r_l_i.nii.gz
     $DATA/mt_r_l_e.nii.gz
-    $DATA/mt_r_u_i.nii.gz
+    $DATA/mt_r_l_i.nii.gz
     $DATA/mt_r_u_e.nii.gz
+    $DATA/mt_r_u_i.nii.gz
 )
 args_xfile=(
     $DATA/deformed_mt_ll_1.nii.gz
@@ -499,6 +501,8 @@ upper_crop_sizes["ll_2"]="0,0,0"
 upper_crop_sizes["lu_2"]="0,8,0"
 upper_crop_sizes["rl_1"]="8,0,0"
 upper_crop_sizes["ru_1"]="8,8,0"
+
+
 
 layout="4"
 
