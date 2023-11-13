@@ -7,7 +7,7 @@
 #SBATCH -e stderr.e
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
-#SBATCH --job-name=Claire-ROP
+#SBATCH --job-name=MIR_4P
 #SBATCH --output=%j.out
 
 #module load  compiler/gnu/10
