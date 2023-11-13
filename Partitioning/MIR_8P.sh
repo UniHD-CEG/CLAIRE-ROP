@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
-#SBATCH --nodes=2 
+#SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name=MIR_8P
 #SBATCH --output=%j.out
@@ -25,7 +25,7 @@ DATA=/path/to/dataset
 export DATA
 
 #Set this flag to zero to ignore the edge partitions ["Case 9" and "Case 10"]
-result=1
+result=0
 
 # Set flags to control which sections to run
 #Partitioning(small dataset)
