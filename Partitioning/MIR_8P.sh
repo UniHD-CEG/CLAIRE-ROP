@@ -2,13 +2,12 @@
 
 #SBATCH --mem=40gb
 #SBATCH --time=00:60:00
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:8
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
-#SBATCH --nodes=1 
+#SBATCH --nodes=2 
 #SBATCH --ntasks-per-node=1
-##SBATCH --cpus-per-task=1
-#SBATCH --job-name=Claire-ROP
+#SBATCH --job-name=MIR_8P
 #SBATCH --output=%j.out
 
 #Load modules
@@ -45,7 +44,7 @@ run_section_6=1
 run_section_7=1
 
 if [ "$run_section_1" -eq "1" ]; then
-    echo "Running the first section:Partitioning"
+    echo "Running the first section: Partitioning"
     # Call the Python script to partition the image (C1 to C5)     
         python_script='
 
@@ -297,7 +296,7 @@ run_registration_defmap() {
      -x  "$DATA/${defmap_name}_"  -defmap
 }
 
-#Define a function to run the registration command to get registration time
+#Define a function to run the registration command to get the registration time
 run_registration_time() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -305,7 +304,7 @@ run_registration_time() {
     local defmap_name="$4"
     local betacont_filename="${betacont//./_}" 
     
-     mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
+     CUDA_VISIBLE_DEVICES=$index mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
     -regnorm h1s-div -maxit 50 -krylovmaxit 100 -precond invreg -iporder 1 \
     -betacont "$betacont" -beta-div 1e-04 -diffpde finite -verbosity 2 \
     &> "$DATA/${defmap_name}_${betacont_filename}"
@@ -330,6 +329,7 @@ else
     done    
 
 fi    
+wait
  
 if [ "$result" -eq "0" ]; then
 # Define the list of cases and corresponding arguments
