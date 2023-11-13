@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
-#SBATCH --nodes=1 # number of nodes
+#SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name=Claire-ROP
 #SBATCH --output=%j.out
