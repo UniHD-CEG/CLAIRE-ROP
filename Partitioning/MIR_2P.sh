@@ -2,26 +2,22 @@
 
 #SBATCH --mem=50gb
 #SBATCH --time=00:60:00
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
-#SBATCH --nodes=1 # number of nodes
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-##SBATCH --cpus-per-task=1
-#SBATCH --job-name=Claire
+#SBATCH --job-name=MIR_2P
 #SBATCH --output=%j.out
 
 #module load  compiler/gnu/10
 #module load  mpi/openmpi/4.0
 
 
-TS=/home/hk-project-irmulti/hd_fa163/TotalSegmentator/bin
-source /home/hk-project-irmulti/hd_fa163/Claire/claire/deps/env_source.sh
+TS=/home/.../TotalSegmentator/bin
 
 #Regularization parameter
 betacont=("5e-3")
-
-##2Partitions
 
 ##Dataset
 DATA=/path/to/dataset
@@ -35,15 +31,15 @@ run_section_1_1=0
 #Partitioning large dataset
 run_section_1_2=0
 #Run CLAIRE and get the warped images
-run_section_2=0
+run_section_2=1
 #Cropping & Merging
-run_section_3=0
+run_section_3=1
 #Padding (C6_C10)
-run_section_4=0
+run_section_4=1
 #Mask
-run_section_5=0
+run_section_5=1
 #Compute dice
-run_section_6=0
+run_section_6=1
 
 if [ "$run_section_1_1" -eq "1" ]; then
     echo "Running the first section:Partitioning"
@@ -163,7 +159,7 @@ common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
 start = time.time()
 
 #w/overlap & remove background 
-start_indices = [(0, 120, 0),(int(common_image.GetWidth()/2)-8, 120, 0)]
+start_indices = [(0, 100, 0), (int(common_image.GetWidth() / 2) - 8, 100, 0)]
 cropped_size = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
 position_suffix = ["r", "l"]
 
@@ -207,11 +203,11 @@ run_registration_time() {
     local index="$3"
     local defmap_name="$4"
     local betacont_filename="${betacont//./_}" 
-    
-     mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
+
+    CUDA_VISIBLE_DEVICES=$index mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
     -regnorm h1s-div -maxit 50 -krylovmaxit 100 -precond invreg -iporder 1 \
     -betacont "$betacont" -beta-div 1e-04 -diffpde finite -verbosity 2 \
-    &> "$DATA/${defmap_name}_${betacont_filename}"
+    &> "$DATA/${defmap_name}_${betacont_filename}_log.txt"
 }
 
     for ((i = 0; i < ${#Partition_mr[@]}; i++)); do
@@ -221,7 +217,7 @@ run_registration_time() {
         echo "mr: ${Partition_mr[i]}"
         run_registration_time "${Partition_mt[i]}" "${Partition_mr[i]}" "$i" "${P[i]}"
     done
-
+wait
 
 cases=("L" "R")
 args_ifile=(
@@ -442,11 +438,9 @@ data_path = os.environ["DATA"]
 pad = sitk.ConstantPadImageFilter()
 input =  sitk.ReadImage(os.path.join(data_path, "tiled_deformed_mt.nii.gz")) 
 
-#pad.SetPadLowerBound((0,128,0)) 
-#pad.SetPadUpperBound((0,128,0))
 
-pad.SetPadLowerBound((0,120,0)) 
-pad.SetPadUpperBound((0,136,0))
+pad.SetPadLowerBound((0,100,0)) 
+pad.SetPadUpperBound((0,156,0))
 
 pad_img = pad.Execute(input)
 pad_img.SetOrigin((1,1,1))
@@ -528,3 +522,10 @@ print ("Overlap Results (Dice) before and after:" ,overlap_results)
 echo "${python_script_7}" | python > $DATA/overlap_"$betacont"
 
 fi
+
+      
+   
+
+
+
+    
