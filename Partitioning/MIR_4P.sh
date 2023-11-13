@@ -227,10 +227,10 @@ run_registration_defmap() {
     local defmap_name="$4"
 
 
-    CUDA_VISIBLE_DEVICES=$index mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
+    mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
     -regnorm h1s-div -maxit 50 -krylovmaxit 100 -precond invreg -iporder 1 \
     -betacont "$betacont" -beta-div 1e-04 -diffpde finite -verbosity 2 \
-     -x  "$DATA/${defmap_name}_"  -defmap    &
+     -x  "$DATA/${defmap_name}_"  -defmap 
 }
 
 #Define a function to run the registration command to get the registration time
