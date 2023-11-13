@@ -31,7 +31,7 @@ export DATA
 #Partitioning(C1-C5), small images
 run_section_1=0
 #Partitioning(C6-C10), large images
-run_section_2=1
+run_section_2=0
 #Run CLAIRE and get the warped images
 run_section_3=1
 #Cropping & Merging
@@ -44,7 +44,7 @@ run_section_6=1
 run_section_7=1
 
 if [ "$run_section_1" -eq "1" ]; then
-    echo "Running the first section: Partitioning"
+    echo "Running the first section:Partitioning"
 
  # Call the Python script to partition the small images (256x256) to 4 partitions (128x128)   
         python_script='
@@ -177,10 +177,11 @@ common_image = sitk.ReadImage(os.path.join(base_dir, "mr.nii.gz"))
 
 start = time.time()
 
-#2P & remove background
-start_indices_2 = [(0, 128, 0), (int(common_image.GetWidth() / 2) - 8, 128, 0)]
+#w/overlap & remove background 
+start_indices_2 = [(0, 100, 0), (int(common_image.GetWidth() / 2) - 8, 100, 0)]
 cropped_size_2 = (int(common_image.GetWidth()/2)+8, int(common_image.GetHeight()/2), common_image.GetDepth())
 position_suffix_2 = ["r", "l"]
+
 
 task = [(input_file, cropped_size_2, start_indices_2, position_suffix_2) for input_file in input_files]
 
@@ -210,7 +211,7 @@ print(end - start)
 fi
 
 if [ "$run_section_3" -eq "1" ]; then
-   echo "Running the second section: Run CLAIRE and get the warped image"
+   echo "Running the second section:Run CLAIRE and getting the warped image"
 
 
 Partition_mt=("mt_r_u" "mt_l_u" "mt_r_l" "mt_l_l")
@@ -240,7 +241,7 @@ run_registration_time() {
     local defmap_name="$4"
     local betacont_filename="${betacont//./_}" 
     
-     mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
+    CUDA_VISIBLE_DEVICES=$index mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
     -regnorm h1s-div -maxit 50 -krylovmaxit 100 -precond invreg -iporder 1 \
     -betacont "$betacont" -beta-div 1e-04 -diffpde finite -verbosity 2 \
     &> "$DATA/${defmap_name}_${betacont_filename}"
@@ -254,6 +255,7 @@ run_registration_time() {
         echo "mr: ${Partition_mr[i]}"
         run_registration_time "${Partition_mt[i]}" "${Partition_mr[i]}" "$i" "${P[i]}"
     done
+wait    
    
 cases=("LL" "LU" "RL" "RU")
 args_ifile=(
@@ -497,11 +499,8 @@ data_path = os.environ["DATA"]
 pad = sitk.ConstantPadImageFilter()
 input =  sitk.ReadImage(os.path.join(data_path, "tiled_deformed_mt.nii.gz")) 
 
-pad.SetPadLowerBound((0,128,0)) 
-pad.SetPadUpperBound((0,128,0))
-
-#pad.SetPadLowerBound((0,100,0)) 
-#pad.SetPadUpperBound((0,156,0))
+pad.SetPadLowerBound((0,100,0)) 
+pad.SetPadUpperBound((0,156,0))
 
 pad_img = pad.Execute(input)
 pad_img.SetOrigin((1,1,1))
@@ -575,7 +574,7 @@ for i, seg in enumerate(segmentations):
     overlap_measures_filter.Execute(reference_segmentation, seg)
     overlap_results[i,OverlapMeasures.dice.value] = overlap_measures_filter.GetDiceCoefficient()
     
-print ("Overlap Results (Dice) before and after:",overlap_results)    
+print ("Overlap Results (Dice) before and after:" ,overlap_results)    
 '
 
 echo "${python_script_7}" | python > $DATA/overlap_"$betacont"
