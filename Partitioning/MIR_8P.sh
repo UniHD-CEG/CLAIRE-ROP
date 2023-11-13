@@ -2,7 +2,7 @@
 
 #SBATCH --mem=40gb
 #SBATCH --time=00:60:00
-#SBATCH --gres=gpu:8
+#SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
 #SBATCH --nodes=2 
