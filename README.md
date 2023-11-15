@@ -3,7 +3,8 @@
 
 <p align="center">
 
-![CLAIRE-ROP](https://github.com/UniHD-CEG/CLAIRE-ROP/assets/62182727/10385986-630f-4a60-abd2-d28dd1ecb51c)
+![CLAIRE-ROP](https://github.com/UniHD-CEG/CLAIRE-ROP/assets/62182727/39b49f03-432c-4615-b295-8c665cf32aff)
+
 
 </p>
 
