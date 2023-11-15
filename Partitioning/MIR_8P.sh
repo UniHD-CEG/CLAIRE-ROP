@@ -5,7 +5,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --partition=accelerated
 #SBATCH -e stderr.e
-#SBATCH --nodes=1 
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name=MIR_8P
 #SBATCH --output=%j.out
@@ -29,7 +29,7 @@ result=0
 
 # Set flags to control which sections to run
 #Partitioning(small dataset)
-run_section_1=1
+run_section_1=0
 #Partitioning(large dataset)
 run_section_2=0
 #Run CLAIRE and get the warped images
@@ -37,7 +37,7 @@ run_section_3=1
 #Cropping & Merging
 run_section_4=1
 #Padding (large dataset)
-run_section_5=0
+run_section_5=1
 #Mask
 run_section_6=1
 #Compute dice
@@ -155,7 +155,7 @@ print(end - start)
 fi         
 
 if [ "$run_section_2" -eq "1" ]; then
-    echo "Running the first section:Partitioning"
+    echo "Running the first section: Partitioning"
   
         # Call the Python script to partition the image (C6 to C10)     
         python_script='
@@ -270,7 +270,7 @@ fi
 
 
 if [ "$run_section_3" -eq "1" ]; then
-   echo "Running the third section:Run CLAIRE and getting the warped image"
+   echo "Running the third section: Run CLAIRE and get the warped image"
 
 #inner partitions (4P)
 Partition_mt=("mt_r_u_i" "mt_l_u_i" "mt_r_l_i" "mt_l_l_i")
@@ -282,7 +282,7 @@ All_partition_mt=("mt_r_u_e" "mt_r_u_i" "mt_l_u_i" "mt_l_u_e" "mt_r_l_e" "mt_r_l
 All_partition_mr=("mr_r_u_e" "mr_r_u_i" "mr_l_u_i" "mr_l_u_e" "mr_r_l_e" "mr_r_l_i" "mr_l_l_i" "mr_l_l_e")
 All_P=("RU_1" "RU_2" "LU_1" "LU_2" "RL_1" "RL_2" "LL_1" "LL_2")
 
-#Define a function to run the registration command to get deofrmation maps
+#Define a function to run the registration command to get deformation maps
 run_registration_defmap() {
     local Partition_mt="$1"
     local Partition_mr="$2"
@@ -304,10 +304,22 @@ run_registration_time() {
     local defmap_name="$4"
     local betacont_filename="${betacont//./_}" 
     
-     CUDA_VISIBLE_DEVICES=$index mpirun ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
+
+    gpus_per_node=4
+    nodes=$(scontrol show hostnames $SLURM_JOB_NODELIST)
+    if [ "$result" -eq "0" ]; then
+        nodes=1
+    fi    
+
+    for node in $nodes; do
+        for gpu_id in $(seq 0 $((gpus_per_node - 1))); do
+            export CUDA_VISIBLE_DEVICES=${gpu_id}
+            mpirun -np 1 ./claire -mt "$DATA/$Partition_mt.nii.gz" -mr "$DATA/$Partition_mr.nii.gz" \
     -regnorm h1s-div -maxit 50 -krylovmaxit 100 -precond invreg -iporder 1 \
     -betacont "$betacont" -beta-div 1e-04 -diffpde finite -verbosity 2 \
-    &> "$DATA/${defmap_name}_${betacont_filename}"
+    &> "$DATA/${defmap_name}_${betacont_filename}"     
+    done
+done
 }
 
 # Execute the appropriate registration command based on the mask value
