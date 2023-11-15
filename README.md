@@ -2,8 +2,7 @@
 # CLAIRE-ROP
 
 <p align="center">
- <img width="623" alt="CLAIRE-ROP" src="https://github.com/UniHD-CEG/CLAIRE-ROP/assets/62182727/18f072b9-b006-4196-92f0-efffa06a684a">
-
+<img width="623" alt="CLAIRE-ROP" src="https://github.com/UniHD-CEG/CLAIRE-ROP/assets/62182727/a67a4945-e836-4422-8c4f-3305dbe96fee">
 </p>
 
 
