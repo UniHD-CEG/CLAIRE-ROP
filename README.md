@@ -34,6 +34,7 @@ Our method addresses this challenge by significantly reducing processing time wi
 
 1) Install CLAIRE and the required tools.
 2) Define the number of available GPUs and your dataset category (S or L) in `Partitioning.sh` and run the script.
+   
    Recommendation: run a small dataset with 4 GPUs and a large dataset with 8 GPUs to get the fastest runtime while preserving the accuracy.
 
 
