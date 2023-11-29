@@ -30,6 +30,13 @@ Required tools:
   - [Totalsegmentator](https://github.com/wasserth/TotalSegmentator )
 
 
+Usage:
+
+Define the number of available GPUs and your dataset category (S or L) and run Partitioning.sh 
+
+
+
+
 If you encounter any problems, have inquiries, or wish to provide feedback, please feel free to reach out to us via email (vahdaneh_kiani@ziti.uni-heidelberg.de).
 
 
