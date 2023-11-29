@@ -15,7 +15,7 @@ Deformable Image Registration (DIR) is a complex process that involves calculati
 Our method addresses this challenge by significantly reducing processing time without sacrificing registration accuracy. We achieve this by partitioning lung images into multiple partitions, enabling separate registration for each partition. These partitions are efficiently distributed across dedicated GPUs, eliminating communication overhead and enhancing scalability. This partition-based approach is scalable, allowing us to adapt seamlessly to an increased number of available GPUs.
  </div>
 
-__Registration framework:__
+###__Registration framework:__
 
 - [CLAIRE](https://github.com/andreasmang/claire)
 
