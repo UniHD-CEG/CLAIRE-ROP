@@ -30,7 +30,7 @@ __Required tools:__
   - [Totalsegmentator](https://github.com/wasserth/TotalSegmentator )
 
 
-__Instruction:__
+__Instructions:__
 
 1) Install CLAIRE and the required tools.
 2) Define the number of available GPUs and your dataset category (S or L) in `Partitioning.sh` and run the script.
