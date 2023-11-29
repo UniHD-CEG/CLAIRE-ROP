@@ -32,7 +32,7 @@ Required tools:
 
 Instruction:
 
-Define the number of available GPUs and your dataset category (S or L) in (`Partitioning.sh`) and run the script.
+Define the number of available GPUs and your dataset category (S or L) in `Partitioning.sh` and run the script.
 
 
 
