@@ -19,18 +19,18 @@ Our method addresses this challenge by significantly reducing processing time wi
 
 - [CLAIRE](https://github.com/andreasmang/claire)
 
-__Dataset:__
+### __Dataset:__
 
 - [4DCT DIR-Lab](https://med.emory.edu/departments/radiation-oncology/research-laboratories/deformable-image-registration/downloads-and-reference-data/4dct.html)
 
-__Required tools:__
+### __Required tools:__
 
   - [SimpleITK](https://pypi.org/project/SimpleITK/)   
   - [NiBabel](https://nipy.org/nibabel/index.html)
   - [Totalsegmentator](https://github.com/wasserth/TotalSegmentator )
 
 
-__Instructions:__
+### __Instructions:__
 
 1) Install CLAIRE and the required tools.
 2) Define the number of available GPUs and your dataset category (S or L) in `Partitioning.sh` and run the script.
