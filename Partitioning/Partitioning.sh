@@ -10,27 +10,27 @@
 #SBATCH --job-name=CLAIRE-ROP
 #SBATCH --output=%j.out
 
-#module load  compiler/gnu/10
+#module load  compiler/gnu/11
 #module load  mpi/openmpi/4.0
 
 
-DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C1/128x64x94_8P/            # Path to dataset
-DATA_MASK=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C1/128x64x94_8P/Masks  # Path to masks
+DATA=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C10/16P              # Path to dataset
+DATA_MASK=/home/hk-project-irmulti/hd_fa163/Dataset/Lung/MIR/C6/16P/Masks  # Path to masks
 export DATA
 export DATA_MASK
-export SLURM_GPUS=8       #Set SLURM_GPUS to the desired GPU count
-export DATA_SET=L         #Set DATA_SET to small (S) or large (L)
+export SLURM_GPUS=16      #Set SLURM_GPUS to the desired GPU count
+export DATA_SET=L        #Set DATA_SET to small (S) or large (L)
 export OVERLAP_VALUE=8    #Set OVERLAP_VALUE (default is 8)
 
 #TS=/home/hk-project-irmulti/hd_fa163/TotalSegmentator/bin
 echo "SLURM_GPUS set to $SLURM_GPUS GPUs."
 
 #Partitioning
-run_section_1=0
-#Mask Partitioning & Calculate lung percentage 
-run_section_2=1
+run_section_1=1
+#Mask Partitioing & Calculate lung percentage 
+run_section_2=0
 #Proceed to MIR
-run_section_3=0
+run_section_3=1
 
 if [ "$run_section_1" -eq "1" ]; then
    echo "Partitioning"
@@ -48,11 +48,11 @@ def crop_and_save(input_file, input_image, start_indices, cropped_size, position
         extract.SetSize(cropped_size)
         extract.SetIndex(start_index)
 
-        start = time.time()
+        #start = time.time()
         cropped_image = extract.Execute(input_image)
-        end = time.time()
-        print("Partitioning time:")
-        print(end - start) 
+        #end = time.time()
+        #print("Partitioning time:")
+        #print(end - start) 
 
         cropped_image.SetSpacing(input_image.GetSpacing())
         cropped_image.SetOrigin(input_image.GetOrigin())
@@ -129,7 +129,7 @@ if os.environ.get("SLURM_GPUS"):
 
 
         cropped_size_8_i = (int((common_image_3.GetWidth()-overlap_value)/2)+ (2*overlap_value), common_image_3.GetHeight(), common_image_3.GetDepth())
-        cropped_size_8_e = (int((common_image_3.GetWidth()-overlap_value)/2)+overlap_value, common_image_3.GetHeight(), common_image_3.GetDepth())
+        cropped_size_8_e = (int((common_image_3.GetWidth()-overlap_value)/2)+ overlap_value, common_image_3.GetHeight(), common_image_3.GetDepth())
         position_suffix_8_i = ["i"]
         position_suffix_8_e = ["e"]
 
@@ -149,26 +149,63 @@ if os.environ.get("SLURM_GPUS"):
     if 16 <= gpu_count:
 
         common_image_4 = sitk.ReadImage(os.path.join(base_dir, "mr_l_l_e.nii.gz"))
+        common_image_5 = sitk.ReadImage(os.path.join(base_dir, "mr_l_l_i.nii.gz"))
 
-        input_files_16_e = ["mr_r_u_e.nii.gz", "mr_r_l_e.nii.gz", "mr_l_u_e.nii.gz", "mr_l_l_e.nii.gz",
-                            "mt_r_u_e.nii.gz", "mt_r_l_e.nii.gz", "mt_l_u_e.nii.gz", "mt_l_l_e.nii.gz"]
+        start_indices_16_e_u = [(0, 0, 0)]
+        start_indices_16_e_l = [(0, int((common_image_4.GetHeight() - overlap_value) / 2) - overlap_value, 0)]
 
-        input_files_16_i = ["mr_r_u_i.nii.gz", "mr_r_l_i.nii.gz", "mr_l_u_i.nii.gz", "mr_l_l_i.nii.gz",
-                            "mt_r_u_i.nii.gz", "mt_r_l_i.nii.gz", "mt_l_u_i.nii.gz", "mt_l_l_i.nii.gz"]
+        start_indices_16_i_u = [(0, 0, 0)]
+        start_indices_16_i_l = [(0, int((common_image_5.GetHeight() - overlap_value) / 2) - overlap_value, 0)]
 
-        cropped_size_16_e = (common_image_4.GetWidth(), int(common_image_4.GetHeight()/2)+overlap_value, common_image_4.GetDepth())
-        cropped_size_16_i = (common_image_4.GetWidth()+overlap_value, int(common_image_4.GetHeight()/2)+overlap_value, common_image_4.GetDepth())
 
-        start_indices_16 = [(0, 0, 0), (0, int(common_image_4.GetHeight()/2)-overlap_value, 0)]
+        input_files_16_e_u = ["mr_r_u_e.nii.gz", "mr_l_u_e.nii.gz", "mt_r_u_e.nii.gz", "mt_l_u_e.nii.gz"]
+        cropped_size_16_e_u_u = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ overlap_value, common_image_4.GetDepth())
+        cropped_size_16_e_u_l = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_4.GetDepth())
 
-        position_suffix_16 = ["u", "l"]
 
-        input_task_16_e = [(input_file, cropped_size_16_e, start_indices_16, position_suffix_16) for input_file in input_files_16_e]
-        input_task_16_i = [(input_file, cropped_size_16_i, start_indices_16, position_suffix_16) for input_file in input_files_16_i]
+    
+        input_files_16_i_u = ["mr_r_u_i.nii.gz", "mr_l_u_i.nii.gz", "mt_r_u_i.nii.gz", "mt_l_u_i.nii.gz"]
+        cropped_size_16_i_u_u = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ overlap_value, common_image_5.GetDepth())
+        cropped_size_16_i_u_l = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_5.GetDepth())
+
+                  
+        input_files_16_e_l = ["mr_r_l_e.nii.gz", "mr_l_l_e.nii.gz", "mt_r_l_e.nii.gz","mt_l_l_e.nii.gz"]  
+        cropped_size_16_e_l_u = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_4.GetDepth())
+        cropped_size_16_e_l_l = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ overlap_value, common_image_4.GetDepth())
+
+                
+        input_files_16_i_l = ["mr_r_l_i.nii.gz", "mr_l_l_i.nii.gz", "mt_r_l_i.nii.gz","mt_l_l_i.nii.gz"]  
+        cropped_size_16_i_l_u = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_5.GetDepth())                                      
+        cropped_size_16_i_l_l = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ overlap_value, common_image_5.GetDepth())                                      
+
+        
+        position_suffix_16_u = ["u"]
+        position_suffix_16_l = ["l"]
+
+        input_task_16_e_u_u = [(input_file, cropped_size_16_e_u_u, start_indices_16_e_u, position_suffix_16_u) for input_file in input_files_16_e_u]
+        input_task_16_e_u_l = [(input_file, cropped_size_16_e_u_l, start_indices_16_e_l, position_suffix_16_l) for input_file in input_files_16_e_u]
+
+
+        input_task_16_i_u_u = [(input_file, cropped_size_16_i_u_u, start_indices_16_i_u, position_suffix_16_u) for input_file in input_files_16_i_u]
+        input_task_16_i_u_l = [(input_file, cropped_size_16_i_u_l, start_indices_16_i_l, position_suffix_16_l) for input_file in input_files_16_i_u]
+
+
+        input_task_16_e_l_u = [(input_file, cropped_size_16_e_l_u, start_indices_16_e_u, position_suffix_16_u) for input_file in input_files_16_e_l]
+        input_task_16_e_l_l = [(input_file, cropped_size_16_e_l_l, start_indices_16_e_l, position_suffix_16_l) for input_file in input_files_16_e_l]
+
+
+        input_task_16_i_l_u = [(input_file, cropped_size_16_i_l_u, start_indices_16_i_u, position_suffix_16_u) for input_file in input_files_16_i_l]
+        input_task_16_i_l_l = [(input_file, cropped_size_16_i_l_l, start_indices_16_i_l, position_suffix_16_l) for input_file in input_files_16_i_l]
 
         with Pool() as pool:
-            pool.starmap(process_input_file, input_task_16_e)
-            pool.starmap(process_input_file, input_task_16_i)
+            pool.starmap(process_input_file, input_task_16_e_u_u)
+            pool.starmap(process_input_file, input_task_16_e_u_l)
+            pool.starmap(process_input_file, input_task_16_i_u_u)
+            pool.starmap(process_input_file, input_task_16_i_u_l)
+            pool.starmap(process_input_file, input_task_16_e_l_u)
+            pool.starmap(process_input_file, input_task_16_e_l_l)
+            pool.starmap(process_input_file, input_task_16_i_l_u)
+            pool.starmap(process_input_file, input_task_16_i_l_l)
 '
 echo "${python_script}" | python    
 fi
@@ -232,17 +269,17 @@ def calculate_lung_percentage(input_file):
     # Calculate total number of pixels
     total_pixels = mask_array.size
     
-    # Calculate the number of pixels in the lung (values of 1 in the mask)
+    # Calculate number of pixels in the lung (values of 1 in the mask)
     lung_pixels = mask_array.sum()
     
     # Calculate percentage of lung area
     lung_percentage = (lung_pixels / total_pixels) * 100
     #end = time.time()
-    #print("Calculating Lung Content time:")
+    #print("Caculating Lung Content time:")
     #print(end - start) 
     
     #Uncomment the line below if you want to see the percentage of lung content in each edge partition
-    print(f"Lung percentage for {input_file}: {lung_percentage:.2f}%")
+    #print(f"Lung percentage for {input_file}: {lung_percentage:.2f}%")
 
     # Determine result
     return 1 if lung_percentage > 0 else 0
@@ -327,29 +364,69 @@ if os.environ.get("SLURM_GPUS"):
         # Determine final result
         result = 1 if any(lung_results) else 0
         print(result)     # Ensure this line is uncommented and that there are no other print statements.
+
 if 16 <= gpu_count:
+    if 16 <= gpu_count:
 
-        common_image_4 = sitk.ReadImage(os.path.join(base_dir, "mask_mt_l_l_e.nii.gz"))
+        common_image_4 = sitk.ReadImage(os.path.join(base_dir, "mask_mt_mr_l_l_e.nii.gz"))
+        common_image_5 = sitk.ReadImage(os.path.join(base_dir, "mask_mt_mr_l_l_i.nii.gz"))
 
-        input_files_16_e = ["mask_mt_r_u_e.nii.gz", "mask_mt_r_l_e.nii.gz", "mask_mt_l_u_e.nii.gz", "mask_mt_l_l_e.nii.gz"]
+        start_indices_16_e_u = [(0, 0, 0)]
+        start_indices_16_e_l = [(0, int((common_image_4.GetHeight() - overlap_value) / 2) - overlap_value, 0)]
 
-        input_files_16_i = ["mask_mt_r_u_i.nii.gz", "mask_mt_r_l_i.nii.gz", "mask_mt_l_u_i.nii.gz", "mask_mt_l_l_i.nii.gz"]
+        start_indices_16_i_u = [(0, 0, 0)]
+        start_indices_16_i_l = [(0, int((common_image_5.GetHeight() - overlap_value) / 2) - overlap_value, 0)]
 
-        cropped_size_16_e = (common_image_4.GetWidth(), int(common_image_4.GetHeight()/2)+overlap_value, common_image_4.GetDepth())
-        cropped_size_16_i = (common_image_4.GetWidth()+overlap_value, int(common_image_4.GetHeight()/2)+overlap_value, common_image_4.GetDepth())
 
-        start_indices_16 = [(0, 0, 0), (0, int(common_image_4.GetHeight()/2)-overlap_value, 0)]
+        input_files_16_e_u = ["mask_mt_mr_r_u_e.nii.gz", "mask_mt_mr_l_u_e.nii.gz", "mask_mt_mt_r_u_e.nii.gz", "mask_mt_mt_l_u_e.nii.gz"]
+        cropped_size_16_e_u_u = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ overlap_value, common_image_4.GetDepth())
+        cropped_size_16_e_u_l = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_4.GetDepth())
 
-        position_suffix_16 = ["u", "l"]
 
-        input_task_16_e = [(input_file, cropped_size_16_e, start_indices_16, position_suffix_16) for input_file in input_files_16_e]
-        input_task_16_i = [(input_file, cropped_size_16_i, start_indices_16, position_suffix_16) for input_file in input_files_16_i]
+    
+        input_files_16_i_u = ["mask_mt_mr_r_u_i.nii.gz", "mask_mt_mr_l_u_i.nii.gz", "mask_mt_mt_r_u_i.nii.gz", "mask_mt_mt_l_u_i.nii.gz"]
+        cropped_size_16_i_u_u = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ overlap_value, common_image_5.GetDepth())
+        cropped_size_16_i_u_l = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_5.GetDepth())
+
+                  
+        input_files_16_e_l = ["mask_mt_mr_r_l_e.nii.gz", "mask_mt_mr_l_l_e.nii.gz", "mask_mt_mt_r_l_e.nii.gz","mask_mt_mt_l_l_e.nii.gz"]  
+        cropped_size_16_e_l_u = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_4.GetDepth())
+        cropped_size_16_e_l_l = (common_image_4.GetWidth(), int((common_image_4.GetHeight()-overlap_value)/2)+ overlap_value, common_image_4.GetDepth())
+
+                
+        input_files_16_i_l = ["mask_mt_mr_r_l_i.nii.gz", "mask_mt_mr_l_l_i.nii.gz", "mask_mt_mt_r_l_i.nii.gz","mask_mt_mt_l_l_i.nii.gz"]  
+        cropped_size_16_i_l_u = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ (2*overlap_value), common_image_5.GetDepth())                                      
+        cropped_size_16_i_l_l = (common_image_5.GetWidth(), int((common_image_5.GetHeight()-overlap_value)/2)+ overlap_value, common_image_5.GetDepth())                                      
+
+        
+        position_suffix_16_u = ["u"]
+        position_suffix_16_l = ["l"]
+
+        input_task_16_e_u_u = [(input_file, cropped_size_16_e_u_u, start_indices_16_e_u, position_suffix_16_u) for input_file in input_files_16_e_u]
+        input_task_16_e_u_l = [(input_file, cropped_size_16_e_u_l, start_indices_16_e_l, position_suffix_16_l) for input_file in input_files_16_e_u]
+
+
+        input_task_16_i_u_u = [(input_file, cropped_size_16_i_u_u, start_indices_16_i_u, position_suffix_16_u) for input_file in input_files_16_i_u]
+        input_task_16_i_u_l = [(input_file, cropped_size_16_i_u_l, start_indices_16_i_l, position_suffix_16_l) for input_file in input_files_16_i_u]
+
+
+        input_task_16_e_l_u = [(input_file, cropped_size_16_e_l_u, start_indices_16_e_u, position_suffix_16_u) for input_file in input_files_16_e_l]
+        input_task_16_e_l_l = [(input_file, cropped_size_16_e_l_l, start_indices_16_e_l, position_suffix_16_l) for input_file in input_files_16_e_l]
+
+
+        input_task_16_i_l_u = [(input_file, cropped_size_16_i_l_u, start_indices_16_i_u, position_suffix_16_u) for input_file in input_files_16_i_l]
+        input_task_16_i_l_l = [(input_file, cropped_size_16_i_l_l, start_indices_16_i_l, position_suffix_16_l) for input_file in input_files_16_i_l]
 
         with Pool() as pool:
-            pool.starmap(process_input_file, input_task_16_e)
-            pool.starmap(process_input_file, input_task_16_i)
-            pool.starmap(calculate_lung_percentage, input_task_16_e)  
-
+            pool.starmap(process_input_file, input_task_16_e_u_u)
+            pool.starmap(process_input_file, input_task_16_e_u_l)
+            pool.starmap(process_input_file, input_task_16_i_u_u)
+            pool.starmap(process_input_file, input_task_16_i_u_l)
+            pool.starmap(process_input_file, input_task_16_e_l_u)
+            pool.starmap(process_input_file, input_task_16_e_l_l)
+            pool.starmap(process_input_file, input_task_16_i_l_u)
+            pool.starmap(process_input_file, input_task_16_i_l_l)
+       
 EOF
 )
 
@@ -383,6 +460,7 @@ if [ "$run_section_3" -eq "1" ]; then
 
     elif [ "$SLURM_GPUS" -ge 16 ]; then
         echo "Running MIR_16P.sh"
+        echo "Running MIR_16P.sh with result: $result"
         sbatch MIR_16P.sh      
 
     fi
